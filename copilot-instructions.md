@@ -1,6 +1,6 @@
 # AI Development Standards - Generic Best Practices
 
-> **Purpose**: This file contains **project-agnostic** development standards, workflows, and lessons learned.
+> **Purpose**: This file contains development standards, workflows, and lessons learned. While the principles are broadly applicable, the concrete tooling and examples in this document are **Python-focused**.
 >
 > **Reusability**: Copy this file to any new project as a baseline for AI-assisted development.
 >
@@ -58,7 +58,7 @@ Our development approach prioritizes **production-ready quality** even for proof
 - ✅ **Strong typing** - Type hints everywhere, Pydantic models for data structures
 - ✅ **Low technical debt** - Continuous monitoring and proactive cleanup
 - ✅ **Clean architecture** - Clear separation of concerns, modular components
-- ✅ **Test-driven** - Regression tests before refactoring, ≥80% coverage
+- ✅ **Test-driven** - Regression tests before refactoring (coverage target defined in Code Quality Standards)
 - ✅ **Elegant structure** - Professional directory organization, no monoliths
 - ✅ **Quality gates** - Automated linting, type checking, code review
 
@@ -130,6 +130,16 @@ find . -name 'temp.*' -o -name 'temp_*' | xargs rm
 
 -----
 
+### Quality Check Command Alias
+
+Define one reusable quality gate command and run it in every refactor/change/push flow:
+
+```bash
+alias qualcheck='pytest tests/ -v && ruff check . && mypy .'
+```
+
+-----
+
 ### Before ANY Refactoring
 
 **Create safety checkpoints and establish baseline:**
@@ -139,16 +149,14 @@ find . -name 'temp.*' -o -name 'temp_*' | xargs rm
 git add -A
 git commit -m "chore: checkpoint before refactoring X"
 
-# 2. RUN all tests - establish baseline
-pytest tests/ -v  # or equivalent test runner
+# 2. RUN quality gates - establish baseline
+qualcheck  # run tests + lint + typing in one command (or equivalent in your stack)
 
 # 3. CHECK technical debt - know current state
 # (if debt tracking script exists)
 python scripts/check_technical_debt.py
 
-# 4. LINT code - verify quality
-ruff check .      # or pylint, eslint, etc.
-mypy .            # or TypeScript check
+# 4. (Optional) language/framework-specific checks not covered by qualcheck
 ```
 
 **Why this matters**: Refactoring without tests is guessing. Checkpoints enable safe rollback.
@@ -160,18 +168,12 @@ mypy .            # or TypeScript check
 **Verify quality before moving on:**
 
 ```bash
-# 1. RUN regression tests
-pytest tests/ -v
+# 1. RUN quality gates
+qualcheck  # tests + lint + typing
 
-# 2. CHECK linting
-ruff check .
+# 2. Add tests for new code, update tests for changed behavior
 
-# 3. VERIFY typing
-mypy .
-
-# 4. Add tests for new code, update tests for changed behavior
-
-# 5. COMMIT with descriptive message (see Git Workflow section for format)
+# 3. COMMIT with descriptive message (see Git Workflow section for format)
 git commit -m "feat(module): description of change"
 ```
 
@@ -223,6 +225,18 @@ pip install -e ".[dev]"
 
 -----
 
+### Dependency Pinning Strategy
+
+Use reproducible dependency management for all environments:
+
+- Keep abstract dependency constraints in `pyproject.toml`
+- Generate pinned lock files with `pip-compile` (from `pip-tools`) or `uv pip compile`
+- Store pinned runtime deps in `requirements.txt`
+- Store pinned dev/test deps in `requirements-dev.txt`
+- Never deploy with unpinned dependencies
+
+-----
+
 ### Code Quality Standards
 
 **Non-negotiable requirements:**
@@ -232,7 +246,7 @@ pip install -e ".[dev]"
   - ✅ **Docstrings required** - Google style for all public functions
   - ✅ **Test coverage ≥80%** - No exceptions (use coverage tools)
   - ✅ **No linting errors** - Fix immediately, don't accumulate
-  - ✅ **Temporary files** - Always use `temp.` or `temp_` prefix
+  - ✅ **Temporary files** - Follow the dedicated *Temporary Files Convention* section above
   - ✅ **Modularity** - Keep files, classes, and services small and focused (see Modularity lesson below)
 
 **Import Ordering Convention** (enforced by Ruff `I` rule):
@@ -702,13 +716,20 @@ git diff main                        # See all changes vs main
 ```bash
 # Ensure clean state
 git status
-pytest tests/ -v
-ruff check .
-mypy .
+qualcheck
 
 # Then push
 git push origin feature/my-feature
 ```
+
+-----
+
+## 👀 PR / Code Review Guidelines
+
+- Keep PRs small and focused (ideally under ~400 changed lines)
+- Include clear context for both **what** changed and **why**
+- Apply extra scrutiny to AI-generated code: verify logic and behavior, not only style
+- Require at least one approval before merging
 
 -----
 
@@ -789,6 +810,13 @@ python -m bandit -c pyproject.toml -r src/
 pip-audit --desc
 ```
 
+### Secrets Management
+
+- Use `.env` files with `python-dotenv` for local development convenience
+- Never commit `.env` files (`.gitignore` should include `.env*`)
+- In production, use environment variables or a secret manager (AWS Secrets Manager, Azure Key Vault, HashiCorp Vault)
+- Keep Gitleaks enabled as the safety net to catch accidental secret exposure
+
 All three run automatically on every `git commit` once `pre-commit install` has been executed.
 
 -----
@@ -799,8 +827,7 @@ These are the vetted, cross-project tool choices. Copy these configs into `pypro
 
 | Category | Tool | Why |
 |---|---|---|
-| **Formatter** | Black | Deterministic, zero-config |
-| **Linter** | Ruff | Fast, supersedes flake8+isort+pyupgrade |
+| **Formatter + linter** | Ruff (`ruff format` + `ruff check`) | Fast, replaces Black + flake8 + isort + pyupgrade |
 | **Type checker** | mypy | Gradual typing (strict on core, permissive elsewhere) |
 | **Tests** | pytest + pytest-cov + pytest-mock | Standard, extensible, branch coverage |
 | **Pre-commit** | pre-commit | Automated quality gates on every commit |
@@ -811,10 +838,7 @@ These are the vetted, cross-project tool choices. Copy these configs into `pypro
 ### Concrete Configs for `pyproject.toml`
 
 ```toml
-# ── Black ──────────────────────────────────────────────────
-[tool.black]
-line-length = 100
-target-version = ["py312"]
+# Formatting note: use `ruff format` (no `[tool.black]` section needed)
 
 # ── Ruff ───────────────────────────────────────────────────
 [tool.ruff]
@@ -884,17 +908,12 @@ repos:
       - id: check-added-large-files
       - id: debug-statements
 
-  - repo: https://github.com/psf/black
-    rev: 24.3.0
-    hooks:
-      - id: black
-        language_version: python3.12
-
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.3.4
     hooks:
       - id: ruff
         args: [--fix]
+      - id: ruff-format
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.9.0
@@ -948,6 +967,9 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 COPY src/ ./src/
 COPY config/ ./config/
+
+RUN adduser --disabled-password --gecos '' appuser
+USER appuser
 
 ENTRYPOINT ["my-tool"]
 CMD ["--help"]
@@ -1019,6 +1041,15 @@ For new developers (or AI assistants) joining the project:
 
 -----
 
+## 🧠 AI Prompt Hygiene
+
+- Always reference the relevant module or file name in your request
+- Include exact error messages and stack traces
+- Specify which test file should be added or updated
+- Keep requests small, focused, and incremental
+
+-----
+
 ## 🔄 Maintaining This File
 
 **When to update**:
@@ -1049,7 +1080,7 @@ mkdir -p src/mypackage tests config docs
 touch src/mypackage/__init__.py src/mypackage/__main__.py
 
 # 2. Copy baseline configs from this file into:
-#    - pyproject.toml (Black, Ruff, Mypy, Pytest, Bandit, Coverage)
+#    - pyproject.toml (Ruff format+lint, Mypy, Pytest, Bandit, Coverage)
 #    - .pre-commit-config.yaml (formatting + linting + security)
 #    - .gitleaks.toml (secret detection)
 #    - .gitignore (include temp.* and temp_* patterns)
