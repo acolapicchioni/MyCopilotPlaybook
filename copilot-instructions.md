@@ -1,10 +1,21 @@
-# AI Development Standards — LLM Instructions
+# Copilot Instructions — LLM Operational Rules
+
+> Version 2.1 — adds Virtual Environment & Dependencies, Refactoring,
+> Secrets Handling, and a structured PLAN.md convention; tightens
+> Git, Testing, and File Access rules.
+>
+> Human-facing rationale, examples, and tooling configs live in
+> [`PLAYBOOK.md`](./PLAYBOOK.md). Keep this file under 200 lines and
+> directive-only.
+>
+> Behavioral principles below are adapted from the
+> Karpathy-Inspired Claude Code Guidelines by Multica AI
+> (https://github.com/multica-ai/andrej-karpathy-skills), which build
+> on Andrej Karpathy's observations on common LLM coding pitfalls.
 
 ## Behavioral Principles
 
-These principles apply *before* writing code. They take precedence when in
-conflict with implementation rules below (e.g. simplicity beats premature
-abstraction).
+These principles apply *before* writing code and take precedence when in conflict with the implementation rules below.
 
 ### Think Before Coding
 - State assumptions explicitly; ask instead of guessing when uncertain.
@@ -43,6 +54,7 @@ abstraction).
 - Use environment variables for runtime configuration and secrets.
 - Use Click for CLI command interfaces.
 - Keep architecture modular with clear separation of concerns.
+- Apply single responsibility per file, class, function, and service.
 
 ## Code Rules
 - Add type hints to all function and method signatures.
@@ -53,26 +65,40 @@ abstraction).
 - Keep classes focused and generally under 200 lines.
 - Order imports as: standard library, third-party, local modules.
 - Never use bare `except:`; catch specific exceptions.
-- Log errors with context and re-raise or wrap appropriately.
+- Log errors with context using `logger.error("…: %s", e, exc_info=True)`, then re-raise or wrap appropriately.
 - Prefer keyword arguments when multiple parameters share similar types.
 - Avoid duplicated utilities; reuse existing modules.
 - Do not add dependencies unless necessary and approved by project conventions.
 
+## Virtual Environment & Dependencies
+- Activate the project venv before any development, testing, or execution.
+- Install packages only into the active venv; never into system Python.
+- Keep abstract dependency constraints in `pyproject.toml`.
+- Generate pinned lock files for runtime (`requirements.txt`) and dev/test (`requirements-dev.txt`) via `pip-compile` or `uv pip compile`.
+- Never deploy with unpinned dependencies.
+
 ## Testing Rules
-- Maintain test coverage at or above 80%.
-- Put tests under `tests/` with clear unit/integration structure.
+- Maintain overall test coverage at or above 80%.
+- Require 100% coverage on critical paths (authentication, data validation, payments).
+- Organize tests under `tests/unit/`, `tests/integration/`, and `tests/e2e/`.
 - Add regression tests before refactoring behavior-sensitive code.
 - Add or update tests for every new public behavior.
 - Prefer fixtures for reusable setup and teardown.
 - Use `@pytest.mark.parametrize` for multi-case behavior validation.
 - Keep tests deterministic; avoid hidden external dependencies.
 
+## Refactoring
+- Before refactoring: commit current state AND run the quality gate to confirm a green baseline.
+- Add regression tests before changing behavior-sensitive code.
+- After refactoring: the quality gate must still pass before committing.
+
 ## Git Rules
 - Never commit directly to `main`.
-- Use feature/fix/chore branches (e.g., `feat/<scope>-<summary>`).
-- Use Conventional Commits (e.g., `feat(api): add pagination`).
+- Use branch prefixes: `feature/`, `fix/`, `refactor/`, `docs/`, `chore/` (e.g. `feat/api-pagination`).
+- Use Conventional Commits with types: `feat | fix | refactor | docs | test | chore` (e.g. `feat(api): add pagination`).
+- Make atomic commits — one logical change per commit. Never mix refactoring with feature work.
 - During AI-assisted sessions, commit at least every 15 minutes.
-- Run quality checks before each commit (`pytest`, `ruff check`, `mypy`, or project equivalent).
+- Run the quality gate before each commit: `pytest && ruff check && mypy` (or project equivalent).
 - Commit before refactoring and after each verified, meaningful step.
 
 ## Temporary Files
@@ -80,17 +106,24 @@ abstraction).
 
 ## File Access Security
 - Never read files outside the project directory without explicit user permission.
-- Treat credential and config directories as protected by default.
+- Treat the following as protected by default: `~/.ssh`, `~/.aws`, `~/.gcp`, `~/.azure`, `~/.kube`, `~/.config`, `~/.docker`, `~/.credentials`, and any file containing secrets, API keys, or tokens.
 - Ask-first protocol: request file path + reason, wait for approval, then access only approved files.
 - Reset permission assumptions every session.
 
-## When Reviewing Code (PR Reviews)
-- Request changes for: missing type hints, file >300 lines, function >50 lines, bare except, raw dicts where Pydantic is required, hardcoded secrets, or missing tests for new public functions.
-- Request changes for diffs containing edits unrelated to the stated task scope.
+## Secrets Handling
+- Use environment variables for secrets in local development (e.g. via `.env` files with `python-dotenv`).
+- Never commit `.env` files; ensure `.gitignore` excludes `.env*`.
+- In production, use a secret manager (AWS Secrets Manager, Azure Key Vault, HashiCorp Vault) rather than bare environment variables.
+
+## PR Reviews
+- Request changes for: missing type hints, file >300 lines, function >50 lines, bare except, raw dicts where Pydantic is required, hardcoded secrets, missing tests for new public functions, or diffs containing edits unrelated to the stated task scope.
 - Leave warnings for: missing docstrings, low coverage, incorrect import order, or non-conventional commit message patterns.
 - Apply extra scrutiny to AI-generated code: verify logic, verify imports are real, detect duplicated utilities, and verify error handling.
 
 ## Planning
 - `PLAN.md` is the single source of truth for objectives, active work, backlog, and completed items.
+- Use the fixed section order: `## Objectives` → `## Active Workstreams` → `## Backlog` → `## Completed`.
+- Represent actionable items as Markdown checkboxes (`- [ ] task`); move them to `## Completed` and mark `- [x]` when done.
+- Do not create alternate plan documents.
 - Update `PLAN.md` before starting work and when status changes.
 - Each active item should carry an explicit success criterion (see Goal-Driven Execution).
