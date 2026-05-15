@@ -1,5 +1,42 @@
 # AI Development Standards — LLM Instructions
 
+## Behavioral Principles
+
+These principles apply *before* writing code. They take precedence when in
+conflict with implementation rules below (e.g. simplicity beats premature
+abstraction).
+
+### Think Before Coding
+- State assumptions explicitly; ask instead of guessing when uncertain.
+- Present multiple interpretations when a request is ambiguous; do not pick one silently.
+- Push back when a simpler approach exists or when the request conflicts with these standards.
+- Stop and ask when confused; name what is unclear rather than working around it.
+
+### Simplicity First
+- Write the minimum code that solves the stated problem.
+- Do not add features, options, or configurability beyond what was asked.
+- Do not introduce abstractions for single-use code.
+- Do not handle errors that cannot occur.
+- If the solution feels overcomplicated, rewrite it shorter before submitting.
+
+### Surgical Changes
+- Every changed line must trace to the requested task.
+- Do not modify adjacent code, comments, formatting, or imports outside the task scope.
+- Do not refactor code that is not broken.
+- Match the existing style even when a different style would be preferable.
+- Remove only the imports, variables, or functions that your own changes made unused.
+- Flag unrelated dead code or smells; do not delete or fix them without approval.
+
+### Goal-Driven Execution
+- Define success criteria before starting (typically a failing test that must pass).
+- For multi-step work, state a short numbered plan with a verification check per step:
+  ```
+  1. <step> → verify: <check>
+  2. <step> → verify: <check>
+  ```
+- Loop until criteria are verified, not until the code looks done.
+- For trivial tasks (typo fixes, obvious one-liners), use judgment; full rigor is not required.
+
 ## Architecture Decisions
 - Use Pydantic models for all domain and data-transfer structures.
 - Use the Repository pattern for data access boundaries.
@@ -49,9 +86,11 @@
 
 ## When Reviewing Code (PR Reviews)
 - Request changes for: missing type hints, file >300 lines, function >50 lines, bare except, raw dicts where Pydantic is required, hardcoded secrets, or missing tests for new public functions.
+- Request changes for diffs containing edits unrelated to the stated task scope.
 - Leave warnings for: missing docstrings, low coverage, incorrect import order, or non-conventional commit message patterns.
-- Apply extra scrutiny to AI-generated code: verify logic, verify imports are real, detect duplicated utilities, and verify robust error handling.
+- Apply extra scrutiny to AI-generated code: verify logic, verify imports are real, detect duplicated utilities, and verify error handling.
 
 ## Planning
 - `PLAN.md` is the single source of truth for objectives, active work, backlog, and completed items.
 - Update `PLAN.md` before starting work and when status changes.
+- Each active item should carry an explicit success criterion (see Goal-Driven Execution).
