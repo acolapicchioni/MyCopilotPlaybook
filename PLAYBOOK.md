@@ -63,6 +63,45 @@ Our development approach prioritizes **production-ready quality** even for proof
 
 **Why this matters**: Technical debt compounds exponentially. Maintaining quality from day one is cheaper than refactoring later.
 
+## 🧭 Behavioral Principles (Rationale)
+
+The terse versions live in `copilot-instructions.md`. The reasoning lives here.
+
+LLMs have well-documented failure modes when coding: they make silent
+assumptions on ambiguous requests, overengineer simple tasks, edit code
+that was never part of the request, and stop when output *looks* done
+rather than when it is verified. Engineering standards alone do not
+prevent these — they constrain the output, not the approach.
+
+The four principles target the approach.
+
+### 1. Think Before Coding
+Forces the assistant to surface uncertainty instead of resolving it
+silently. The cost of one clarifying question is far lower than the
+cost of a confidently wrong implementation.
+
+### 2. Simplicity First
+Counterweight to the LLM tendency toward bloated abstractions. Pairs
+with the size limits in *Modularity* — the limits constrain the
+symptom, this principle constrains the cause.
+
+### 3. Surgical Changes
+Every changed line must trace back to the requested task. This is
+the rule that prevents "drive-by refactors" — the most common reason
+an AI-assisted PR balloons from a 10-line fix to a 200-line diff.
+
+### 4. Goal-Driven Execution
+"Make it work" is a weak criterion that requires constant clarification.
+"This failing test must pass" is a verifiable goal the assistant can
+loop against autonomously. Reframe imperative tasks as declarative goals
+whenever possible.
+
+> **Tradeoff**: these principles bias toward caution over speed. For
+> trivial work (typos, obvious one-liners), use judgment.
+
+Credits: adapted from the
+[Karpathy-Inspired Claude Code Guidelines](https://github.com/multica-ai/andrej-karpathy-skills).
+
 ---
 
 ## 🚨 Critical Rules (ALWAYS Follow)
